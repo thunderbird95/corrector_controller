@@ -11,6 +11,8 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
+    
+#include <stdint.h>        
 
 typedef union {
     struct {
@@ -67,10 +69,11 @@ typedef struct  {
     uint8_t positionsNum;
     uint8_t correctorPositionMult;
     uint8_t correctorsAdresses[2];
-    uint8_t correctorStartPositions[2];
+    int8_t correctorStartPositions[2];
     uint8_t adcValues[16-1];
     //uint8_t adcMaxDiff;
-    uint8_t correctorsValues[2][16];
+    int8_t correctorsValues[2][16];
+    //uint8_t checksum;
 } settings_t;
 //52
 
@@ -78,13 +81,13 @@ typedef struct  {
     uint8_t temperature;
     uint8_t adcPositionValue;
     uint8_t positionIndex;
-    uint16_t rdCorrectorValues[2];
-    uint16_t wrCorrectorValues[2];
+    int16_t rdCorrectorValues[2];
+    int16_t wrCorrectorValues[2];
     //uint16_t extCorrectorValues[2];
     currentFlags_t flags;
     internalErrorFlags_t internalErrors;
     motorErrorFlags_t motorErrors[2];
-    uint8_t counter;
+    //uint8_t counter;
     uint8_t displayed_error;
 } currentValues_t;
     

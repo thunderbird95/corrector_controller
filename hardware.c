@@ -123,25 +123,6 @@ uint8_t linWaitData(uint8_t* data, uint8_t maxDataLen, uint8_t timeout)
     }
 }
 
-//uint8_t linReadByte(uint8_t* byte, uint8_t timeout)
-//{
-//    TMR0 = 255 - timeout;
-//    INTCONbits.TMR0IF = 0;
-//    if (RCSTAbits.OERR)
-//    {
-//        RCSTA = 0;
-//        asm("nop");
-//        RCSTA = 0x90;
-//    }
-//    while((PIR1bits.RCIF == 0) && (INTCONbits.TMR0IF == 0))
-//    {}
-//    if (PIR1bits.RCIF == 0)
-//        return 1;
-//    PIR1bits.RCIF = 0;
-//    byte[0] = RCREG;
-//    return 0;
-//}
-
 void sleep(uint8_t timeMs)
 {
     TMR0 = 255 - timeMs;
