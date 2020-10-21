@@ -4,7 +4,8 @@
 
 //uint8 res; 
 
-uint8_t i;
+//#define ADC_8_BIT_ONLY
+
 
 void initHardware()
 {
@@ -25,6 +26,7 @@ void initHardware()
     RCSTA = 0x90;
     OPTION_REG = 0x87;
     INTCON = 0;
+    //FVRCON = 0x30;
 }
 
 void setAdcChannel(uint8_t channelCode)
@@ -34,7 +36,9 @@ void setAdcChannel(uint8_t channelCode)
 
 uint8_t readAdc8bit()
 {
+#ifndef ADC_8_BIT_ONLY
     ADCON1bits.ADFM = 0;
+#endif
     ADCON0bits.ADGO = 1;
     while(ADCON0bits.ADGO == 1)
     {}
@@ -70,12 +74,21 @@ uint8_t linWriteByte(uint8_t byte)
     TXREG = byte;
     TMR0 = 0xFE;
     INTCONbits.TMR0IF = 0;
+//    if (RCSTAbits.OERR)
+//    {
+//        RCSTA = 0;
+//        asm("nop");
+//        RCSTA = 0x90;
+//    }
+    PIR1bits.RCIF = 0;
     while((PIR1bits.RCIF == 0) && (INTCONbits.TMR0IF == 0))
     {}
     if (PIR1bits.RCIF == 0)
         return 1;
+#if 1
     if (RCREG != byte)
         return 2;
+#endif
     return 0;
 }
 
@@ -88,7 +101,8 @@ uint8_t linReadByte(uint8_t* byte, uint8_t timeout)
         RCSTA = 0;
         asm("nop");
         RCSTA = 0x90;
-    }
+    }    
+    PIR1bits.RCIF = 0;
     while((PIR1bits.RCIF == 0) && (INTCONbits.TMR0IF == 0))
     {}
     if (PIR1bits.RCIF == 0)
@@ -100,6 +114,7 @@ uint8_t linReadByte(uint8_t* byte, uint8_t timeout)
 
 uint8_t linWaitData(uint8_t* data, uint8_t maxDataLen, uint8_t timeout)
 {
+    uint8_t i;
     TMR0 = 255 - timeout;
     INTCONbits.TMR0IF = 0;
     if (RCSTAbits.OERR)

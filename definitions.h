@@ -40,7 +40,7 @@ typedef union {
         unsigned NO_ACK_PROCESSING          :1;
         unsigned BAD_CONNECTION_PROCESSING  :1;
         unsigned LIN_TXRX_SET               :1;
-        unsigned UNKNOWN7                   :1;
+        unsigned LOGIC_ERROR                :1;
     };
     struct {
         unsigned ALL_ERRORS             :8;
@@ -49,11 +49,11 @@ typedef union {
 
 typedef union {
     struct {
-        unsigned INIT_CORRECTORS        :2;
-        //unsigned UNKNOWN1               :1;
+        unsigned INIT_CORRECTORS        :1;
+        unsigned UNKNOWN1               :1;
         unsigned HALF_COUNTER           :1;
         unsigned EXT_CORRECTOR_VALUES   :1;
-        unsigned UNKNOWN4               :1;
+        unsigned MOTION_IN_PROGRESS     :1;
         unsigned UNKNOWN5               :1;
         unsigned UNKNOWN6               :1;
         unsigned UNKNOWN7               :1;
@@ -74,6 +74,8 @@ typedef struct  {
     //uint8_t adcMaxDiff;
     int8_t correctorsValues[2][16];
     //uint8_t checksum;
+    uint8_t readAttemptsNum;
+    //uint8_t startPositionTimeout;    
 } settings_t;
 //52
 

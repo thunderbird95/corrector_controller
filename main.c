@@ -38,21 +38,28 @@
 #include "settings_mgr.h"
 #include "ext_control.h"
 
-uint8_t i;
-uint16_t temp;
+uint8_t correctorIndex;
+//uint8_t j;
 uint8_t counter;
+//uint16_t temp;
 
 #define MOTOR_START_SET_TIME    15  //  TIME IN 100MS intervals
 #define READ_ATTEMPTS_NUM   3
 
+void readCorrectorPositionWithRepeats();
+
 void main(void) {
 
     currentValues.flags.ALL_FLAGS = 0;
-    counter = 0;
+    //counter = 0;
     currentValues.internalErrors.ALL_ERRORS = 0;
     currentValues.motorErrors[0].ALL_ERRORS = 0;
     currentValues.motorErrors[1].ALL_ERRORS = 0;
     currentValues.positionIndex = 255;
+//    currentValues.rdCorrectorValues[0] = 0;
+//    currentValues.rdCorrectorValues[1] = 0;
+//    currentValues.wrCorrectorValues[0] = 0;
+//    currentValues.wrCorrectorValues[1] = 0;
     currentFrameIndex = 0;
         
     initHardware();
@@ -64,6 +71,8 @@ void main(void) {
         loadDefaultSettings();
     }
     
+    //sendCurrentValues();
+    
     setAdcChannel(ADC_TEMPERATURE_CHANNEL);
     LED_ON;
     writeLinSync();
@@ -74,73 +83,157 @@ void main(void) {
     if (!currentValues.internalErrors.SETTINGS_EMPTY)
     {
         LED_ON;         
-        for (i = 0; i < settings.correctorsNum; i++)
+        for (correctorIndex = 0; correctorIndex < settings.correctorsNum; correctorIndex++)
         {
-            temp = readCorrectorPosition(&(currentValues.rdCorrectorValues[i]), settings.correctorsAdresses[i]);
-            if (temp != 0)
+//            for (j = 0; j < settings.readAttemptsNum; j++)
+//            {
+//                temp = readCorrectorPosition(&(currentValues.rdCorrectorValues[i]), settings.correctorsAdresses[i]);
+//                if (temp == 0)
+//                    break;
+//                LED_OFF;
+//                sleep(100);
+//            }
+//            LED_ON;
+            readCorrectorPositionWithRepeats();
+            if (currentValues.motorErrors[correctorIndex].ALL_ERRORS)
+                continue;
+//            if (temp != 0)
+//            {
+//                switch (temp)
+//                {
+//                    case 1:
+//                        currentValues.motorErrors[i].LIN_TXRX_INIT = 1;
+//                        break;
+//                    case 2:
+//                        currentValues.motorErrors[i].NO_ACK_INIT = 1;
+//                        break;
+//                    default:
+//                        currentValues.motorErrors[i].BAD_CONNECTION_INIT = 1;
+//                        break;
+//                }
+//                continue;
+//            }
+            if (currentValues.rdCorrectorValues[correctorIndex] != 0)
             {
-                switch (temp)
-                {
-                    case 1:
-                        currentValues.motorErrors[i].LIN_TXRX_INIT = 1;
-                        break;
-                    case 2:
-                        currentValues.motorErrors[i].NO_ACK_INIT = 1;
-                        break;
-                    default:
-                        currentValues.motorErrors[i].BAD_CONNECTION_INIT = 1;
-                        break;
-                }
+                currentValues.motorErrors[correctorIndex].LOGIC_ERROR = 1;
                 continue;
             }
             
-            currentValues.wrCorrectorValues[i] = settings.correctorStartPositions[i] * settings.correctorPositionMult;
-            temp = writeCorrectorPosition(settings.correctorsAdresses[i], currentValues.wrCorrectorValues[i]);
-            if (temp != 0)
-            {
-                currentValues.motorErrors[i].LIN_TXRX_INIT = 1;
-                continue;
-            }
+            currentValues.wrCorrectorValues[correctorIndex] = settings.correctorStartPositions[correctorIndex] * settings.correctorPositionMult;
+            /*temp = */writeCorrectorPosition(settings.correctorsAdresses[correctorIndex], currentValues.wrCorrectorValues[correctorIndex]);
+//            if (temp != 0)
+//            {
+//                currentValues.motorErrors[i].LIN_TXRX_INIT = 1;
+//                continue;
+//            }
         }
         
-        for (i = 0; i < MOTOR_START_SET_TIME; i++)
+        for (counter = 0; counter < MOTOR_START_SET_TIME/*settings.startPositionTimeout*/; counter++)
         {            
-            writeLinSync(); //  MOTOR CAN BE SLEEP, IF NO COMMANDS WAS RECEIVED ~1s
+            //writeLinSync(); //  MOTOR CAN BE SLEEP, IF NO COMMANDS WAS RECEIVED ~1s
             sleep(98);
+            currentValues.flags.INIT_CORRECTORS = 1;
+            for (correctorIndex = 0; correctorIndex < settings.correctorsNum; correctorIndex++)
+            {
+                if (currentValues.motorErrors[correctorIndex].ALL_ERRORS)
+                    continue;
+                readCorrectorPositionWithRepeats();
+                if (currentValues.motorErrors[correctorIndex].ALL_ERRORS)
+                    continue;
+                if (currentValues.rdCorrectorValues[correctorIndex] == 0)
+                    writeCorrectorPosition(settings.correctorsAdresses[correctorIndex], currentValues.wrCorrectorValues[correctorIndex]);
+                if (currentValues.rdCorrectorValues[correctorIndex] != currentValues.wrCorrectorValues[correctorIndex])
+                    currentValues.flags.INIT_CORRECTORS = 0;
+            }
+            if (currentValues.flags.INIT_CORRECTORS)
+                break;
+#if 0
+            for (correctorIndex = 0; correctorIndex < settings.correctorsNum; correctorIndex++)
+            {
+                if (currentValues.rdCorrectorValues[correctorIndex] != currentValues.wrCorrectorValues[correctorIndex])
+                    continue;
+            }
+            break;
+#else
+//            if ((currentValues.rdCorrectorValues[0] == currentValues.wrCorrectorValues[0]) && (currentValues.rdCorrectorValues[1] == currentValues.wrCorrectorValues[1]))
+//                break;
+#endif
+            
+//            for (j = 0; j < settings.readAttemptsNum; j++)
+//            {
+//                temp = readCorrectorPosition(&(currentValues.rdCorrectorValues[i]), settings.correctorsAdresses[i]);
+//                if (temp == 0)
+//                    break;
+//                LED_OFF;
+//                sleep(100);
+//            }
+//            LED_ON;
+//            if (temp != 0)
+//            {
+//                switch (temp)
+//                {
+//                    case 1:
+//                        currentValues.motorErrors[i].LIN_TXRX_INIT = 1;
+//                        break;
+//                    case 2:
+//                        currentValues.motorErrors[i].NO_ACK_INIT = 1;
+//                        break;
+//                    default:
+//                        currentValues.motorErrors[i].BAD_CONNECTION_INIT = 1;
+//                        break;
+//                }
+//                continue;
+//            }
         }
         LED_OFF;
     }
     
+    for (correctorIndex = 0; correctorIndex < settings.correctorsNum; correctorIndex++)
+    {
+        if (currentValues.motorErrors[correctorIndex].ALL_ERRORS)
+            continue;
+        if (currentValues.rdCorrectorValues[correctorIndex] != currentValues.wrCorrectorValues[correctorIndex])
+            currentValues.motorErrors[correctorIndex].LOGIC_ERROR = 1;
+    }
+  
+    counter = 0;
+    
     while(1)
     {
+        uint16_t temp;
         currentValues.temperature = readAdc8bit();
         setAdcChannel(ADC_POSITION_CHANNEL);        
         temp = 0;
-        for (i = 0; i < 8; i++)
+        for (correctorIndex = 0; correctorIndex < 8; correctorIndex++)
+#if 1
             temp += readAdc10bit();
         temp = temp >> 5;
         currentValues.adcPositionValue = (uint8_t)temp;
+#else
+            temp += readAdc8bit();
+        currentValues.adcPositionValue = (temp >> 3) & 0xFF;    
+#endif
         setAdcChannel(ADC_TEMPERATURE_CHANNEL);
         
         temp = 0;
-        for (i = 0; i < (settings.positionsNum - 1); i++)
+        for (correctorIndex = 0; correctorIndex < (settings.positionsNum - 1); correctorIndex++)
         {
-            if (currentValues.adcPositionValue > settings.adcValues[i])
-                temp = i + 1;//currentValues.positionIndex = i + 1;
+            if (currentValues.adcPositionValue > settings.adcValues[correctorIndex])
+                temp = correctorIndex + 1;//currentValues.positionIndex = i + 1;
         }
         
         if ((temp != currentValues.positionIndex) || (currentValues.flags.EXT_CORRECTOR_VALUES))
         {
             currentValues.positionIndex = temp;
-            for (i = 0; i < settings.correctorsNum; i++)
+            for (correctorIndex = 0; correctorIndex < settings.correctorsNum; correctorIndex++)
             {
-                if (currentValues.motorErrors[i].ALL_ERRORS == 0)
+                if (currentValues.motorErrors[correctorIndex].ALL_ERRORS == 0)
                 {
                     if (!currentValues.flags.EXT_CORRECTOR_VALUES)
-                        currentValues.wrCorrectorValues[i] = settings.correctorsValues[i][currentValues.positionIndex] * settings.correctorPositionMult;
-                    temp = writeCorrectorPosition(settings.correctorsAdresses[i], currentValues.wrCorrectorValues[i]);
-                    if (temp != 0)
-                        currentValues.motorErrors[i].LIN_TXRX_SET = 1;
+                        currentValues.wrCorrectorValues[correctorIndex] = settings.correctorsValues[correctorIndex][currentValues.positionIndex] * settings.correctorPositionMult;
+                    /*temp =*/ writeCorrectorPosition(settings.correctorsAdresses[correctorIndex], currentValues.wrCorrectorValues[correctorIndex]);
+//                    if (temp != 0)
+//                        currentValues.motorErrors[i].LIN_TXRX_SET = 1;
                 }
             }
         }
@@ -151,58 +244,87 @@ void main(void) {
         }
         else
         {
-            if ((counter % 4) == 0)
+            if ((counter % 2) == 0)
             {
-                for (i = 0; i < settings.correctorsNum; i++)
+                //currentValues.flags.MOTION_IN_PROGRESS = 0;
+                for (correctorIndex = 0; correctorIndex < settings.correctorsNum; correctorIndex++)
                 {
-                    if (currentValues.motorErrors[i].ALL_ERRORS != 0)
+                    if (currentValues.motorErrors[correctorIndex].ALL_ERRORS != 0)
                         continue;
-                    temp = readCorrectorPosition(&(currentValues.rdCorrectorValues[i]), settings.correctorsAdresses[i]);
-                    if (temp != 0)
+                    
+//                    for (j = 0; j < settings.readAttemptsNum; j++)
+//                    {
+//                        temp = readCorrectorPosition(&(currentValues.rdCorrectorValues[i]), settings.correctorsAdresses[i]);
+//                        if (temp == 0)
+//                            break;
+//                        LED_ON;
+//                        sleep(100);
+//                    }
+//                    LED_OFF;
+                    readCorrectorPositionWithRepeats();
+                    
+                    if (currentValues.motorErrors[correctorIndex].ALL_ERRORS)
+                        continue;
+                    
+                    if (currentValues.rdCorrectorValues[correctorIndex] != currentValues.wrCorrectorValues[correctorIndex])
                     {
-                        switch (temp)
-                        {
-                            case 1:
-                                currentValues.motorErrors[i].LIN_TXRX_INIT = 1;
-                                break;
-                            case 2:
-                                currentValues.motorErrors[i].NO_ACK_INIT = 1;
-                                break;
-                            default:
-                                currentValues.motorErrors[i].BAD_CONNECTION_INIT = 1;
-                                break;
-                        }
-                        continue;
+                        writeCorrectorPosition(settings.correctorsAdresses[correctorIndex], currentValues.wrCorrectorValues[correctorIndex]);
+                        //currentValues.flags.MOTION_IN_PROGRESS = 1;
                     }
+//                    if (temp != 0)
+//                    {
+//                        switch (temp)
+//                        {
+//                            case 1:
+//                                currentValues.motorErrors[i].LIN_TXRX_INIT = 1;
+//                                break;
+//                            case 2:
+//                                currentValues.motorErrors[i].NO_ACK_INIT = 1;
+//                                break;
+//                            default:
+//                                currentValues.motorErrors[i].BAD_CONNECTION_INIT = 1;
+//                                break;
+//                        }
+//                        continue;
+//                    }
                 }
                 
                 sendCurrentValues();
             }
             
-            if ((currentValues.internalErrors.ALL_ERRORS == 0) && (currentValues.motorErrors[0].ALL_ERRORS == 0) && (currentValues.motorErrors[1].ALL_ERRORS == 0))
+//            if ((currentValues.internalErrors.ALL_ERRORS == 0) && (currentValues.motorErrors[0].ALL_ERRORS == 0) && (currentValues.motorErrors[1].ALL_ERRORS == 0))
+//                currentValues.displayed_error = 0;
+//            else
+//            {
+#if 0
                 currentValues.displayed_error = 0;
-            else
-            {
-                if (currentValues.internalErrors.SETTINGS_EMPTY)
-                    currentValues.displayed_error = 1;
-                else
-                {
-                    currentValues.displayed_error = 3;
-                    if ((currentValues.motorErrors[0].ALL_ERRORS) && (currentValues.motorErrors[1].ALL_ERRORS))
-                        currentValues.displayed_error += 28;
-                    else if (currentValues.motorErrors[0].ALL_ERRORS)
-                        currentValues.displayed_error += 4;
-                    else if (currentValues.motorErrors[1].ALL_ERRORS)
-                        currentValues.displayed_error += 12;
-                }
-            }
+                if (currentValues.internalErrors.SETTINGS_EMPTY == 1)
+                    currentValues.displayed_error += 4;
+                if (currentValues.motorErrors[0].ALL_ERRORS != 0)
+                    currentValues.displayed_error += 1;
+                if (currentValues.motorErrors[1].ALL_ERRORS != 0)
+                    currentValues.displayed_error += 2;
+#else
+                if ((currentValues.internalErrors.ALL_ERRORS == 0) && (currentValues.motorErrors[0].ALL_ERRORS == 0) && (currentValues.motorErrors[1].ALL_ERRORS == 0))
+                    currentValues.displayed_error = 0;
+                else if (currentValues.internalErrors.SETTINGS_EMPTY)
+                    currentValues.displayed_error = 5;
+//                else if (currentValues.internalErrors.LIN_TXRX)
+//                    currentValues.displayed_error = 7;
+#endif
+//                if (currentValues.internalErrors.LIN_TXRX == 1)
+//                    currentValues.displayed_error += 8;
+//            }
+//            else if ((currentValues.motorErrors[0].ALL_ERRORS != 0) && (currentValues.motorErrors[1].ALL_ERRORS == 0))
+//                currentValues.displayed_error = 2;
+//            else if ((currentValues.motorErrors[0].ALL_ERRORS == 0) && (currentValues.motorErrors[1].ALL_ERRORS != 0))
+//                currentValues.displayed_error = 3;
+//            else if ((currentValues.motorErrors[0].ALL_ERRORS != 0) && (currentValues.motorErrors[1].ALL_ERRORS != 0))
+//                currentValues.displayed_error = 4;
 
             // ERRORS DISPLAYING
-            if ((counter < 8) && (currentValues.displayed_error != 0))
-            {
-                if (currentValues.displayed_error & (1 << counter))
-                    LED_ON;
-            }
+            if (currentValues.displayed_error > counter)
+                LED_ON;
             
             counter++;
             if (counter > 11)
@@ -217,3 +339,32 @@ void main(void) {
     return;
 }
 
+void readCorrectorPositionWithRepeats()
+{
+    uint8_t i, result;
+    for (i = 0; i < settings.readAttemptsNum; i++)
+    {
+        result = readCorrectorPosition(&(currentValues.rdCorrectorValues[correctorIndex]), settings.correctorsAdresses[correctorIndex]);
+        if (result == 0)
+            break;
+        LED_TOGGLE;
+        sleep(100);
+        LED_TOGGLE;
+    }
+    if (result != 0)
+    {
+        switch (result)
+        {
+            case 1:
+                currentValues.internalErrors.LIN_TXRX = 1;//currentValues.motorErrors[i].LIN_TXRX_INIT = 1;
+                break;
+            case 2:
+                currentValues.motorErrors[correctorIndex].NO_ACK_INIT = 1;
+                break;
+            default:
+                currentValues.motorErrors[correctorIndex].BAD_CONNECTION_INIT = 1;
+                break;
+        }
+        //continue;
+    }
+}

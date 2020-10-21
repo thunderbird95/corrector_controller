@@ -3,6 +3,8 @@
 
 #define NOT_CORRECTOR_ADDRESS   0xFF
 
+//uint8_t cnt;
+
 uint8_t linChecksum(uint8_t* packet)
 {
     uint16_t sum = 0;
@@ -54,11 +56,17 @@ uint8_t readCorrectorPosition(int16_t* position, uint8_t address)
         writeLinSync();
         linWriteByte(0x7D);
         
+#if 0
         for (cnt2 = 1; cnt2 < 10; cnt2++)
         {
             if (linReadByte(&(linFrame[cnt2]), 20))
                 return 2;
         }
+#else
+        cnt2 = linWaitData(&(linFrame[1]), 9, 30);
+        if (cnt2 < 9)
+            return 2;
+#endif
         
         // TODO: maybe repeat can be useful
         if (linFrame[9] != linChecksum(linFrame))

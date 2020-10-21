@@ -18,6 +18,7 @@ extern "C" {
 #define LED_ON          (LATAbits.LATA0 = 1)
 #define LED_OFF         (LATAbits.LATA0 = 0)
 #define LED_LATCH       (LATAbits.LATA0)
+#define LED_TOGGLE      (LATAbits.LATA0 ^= 1)
     
 #include <stdint.h>
 

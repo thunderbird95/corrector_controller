@@ -28,7 +28,7 @@ void waitExtCommand()
 {
     uint8_t cnt;
     
-    currentFrameIndex += linWaitData(&(linFrame[currentFrameIndex]), sizeof(linFrame) - currentFrameIndex, 98);
+    currentFrameIndex += linWaitData(&(linFrame[currentFrameIndex]), sizeof(linFrame) - currentFrameIndex, 196);
     
     if (currentFrameIndex < 11)
         return;
